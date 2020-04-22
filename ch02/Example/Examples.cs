@@ -58,6 +58,7 @@ namespace Example
               .Select(async t =>
               {
                   var result = await t;
+                  // console order is 1, 1, 2
                   Console.WriteLine($"ExampleProcessTaskAsyncAsync: {result}");
                   return result;
               }).ToArray();
@@ -70,6 +71,72 @@ namespace Example
             {
                 await Task.Delay(TimeSpan.FromSeconds(value));
                 return value;
+            }
+        }
+        
+        [Fact]
+        public async void ExampleReturnOnDifferentContextAsync()
+        {
+            Console.WriteLine($"{Task.CurrentId} Before: ConfigureAwait(false)");
+            await Task.Delay(TimeSpan.FromTicks(10)).ConfigureAwait(false);
+            Console.WriteLine($"{Task.CurrentId} After: ConfigureAwait(false)");
+        }
+        
+        [Fact]
+        public async void ExampleReturnOnSameContextAsync()
+        {
+            Console.WriteLine($"{Task.CurrentId} Before: ConfigureAwait(true)");
+            await Task.Delay(TimeSpan.FromTicks(10)).ConfigureAwait(true);
+            Console.WriteLine($"{Task.CurrentId} After: ConfigureAwait(true)");
+        }
+        
+        [Fact]
+        public async void TestWrapValueTaskAsync()
+        {
+            ValueTask<int> MethodAsync() => new ValueTask<int>(8);
+            
+            await WrapperAsync();
+            
+            async Task WrapperAsync()
+            {
+                ValueTask<int> t = MethodAsync();
+                // other stuff
+                int result = await t;
+                Assert.Equal(8, result);
+            }
+        }
+        
+        [Fact]
+        public async void TestValueTaskAsTaskAsync()
+        {
+            ValueTask<int> MethodAsync() => new ValueTask<int>(8);
+            
+            await WrapperAsync();
+            
+            async Task WrapperAsync()
+            {
+                Task<int> t = MethodAsync().AsTask();
+                // other stuff
+                int result = await t;
+                Assert.Equal(8, result);
+            }
+        }
+        
+        [Fact]
+        public async void TestConsumeValueTaskMultipleTimesAsync()
+        {
+            ValueTask<int> MethodAsync() => new ValueTask<int>(8);
+            
+            await ConsumeMultipleTimesAsync();
+            
+            async Task ConsumeMultipleTimesAsync()
+            {
+                Task<int> t1 = MethodAsync().AsTask();
+                Task<int> t2 = MethodAsync().AsTask();
+                // other stuff
+                int x1 = await t1;
+                int x2 = await t2;
+                Assert.Equal(16, x1 + x2);
             }
         }
     }
