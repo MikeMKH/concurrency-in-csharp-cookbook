@@ -45,7 +45,33 @@ namespace Example
             t1.Post(2);
             t1.Complete();
             
-            b.Completion.Wait();
+            test.Completion.Wait();
         }
+        
+        [Fact]
+        public void TestDegreeOfParallelism()
+        {
+            var t1 = new TransformBlock<int, int>(x => x * 4);
+            var t2 = new TransformBlock<int, string>(
+                x => $"Hello number {x}",
+                new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded }
+            );
+            
+            var log = new TransformBlock<string, string>(x => { Console.WriteLine($"TransformBlock has {x}"); return x; });
+            var test = new ActionBlock<string>(x => Assert.Equal("Hello number 8", x));
+            
+            var options = new DataflowLinkOptions { PropagateCompletion = true };
+            t1.LinkTo(t2, options);
+            t2.LinkTo(log, options);
+            log.LinkTo(test, options);
+            
+            
+            t1.Post(2);
+            t1.Complete();
+            
+            test.Completion.Wait();
+        }
+        
+        
     }
 }
