@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -18,9 +17,33 @@ namespace Example
     public class Examples
     {
         [Fact]
-        public void Test1()
+        public async void ExampleDownloadStringTaskAsync()
         {
-
+            Task<string> DownloadStringTaskAsync(WebClient client, Uri address)
+            {
+                var tcs = new TaskCompletionSource<string>();
+                // The event handler will complete the task and unregister itself.
+                DownloadStringCompletedEventHandler handler = null;
+                handler = (_, e) =>
+                {
+                  client.DownloadStringCompleted -= handler;
+                  if (e.Cancelled)
+                    tcs.TrySetCanceled();
+                  else if (e.Error != null)
+                    tcs.TrySetException(e.Error);
+                  else
+                    tcs.TrySetResult(e.Result);
+                };
+                // Register for the event and *then* start the operation.
+                client.DownloadStringCompleted += handler;
+                client.DownloadStringAsync(address);
+                return tcs.Task;
+            }
+            
+            var url = "http://www.google.com";
+            var download = await DownloadStringTaskAsync(new WebClient(), new Uri(url));
+            Console.WriteLine($"DownloadStringTaskAsync: {url} got {download.Length} characters");
+            Assert.NotNull(download);
         }
     }
 }
