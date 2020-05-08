@@ -19,6 +19,7 @@ namespace Example
         [Fact]
         public async void ExampleDownloadStringTaskAsync()
         {
+            // taken from https://resources.oreilly.com/examples/0636920266624/blob/master/ch08.cs#L17-39
             Task<string> DownloadStringTaskAsync(WebClient client, Uri address)
             {
                 var tcs = new TaskCompletionSource<string>();
