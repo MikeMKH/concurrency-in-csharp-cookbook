@@ -46,5 +46,58 @@ namespace Example
             Console.WriteLine($"DownloadStringTaskAsync: {url} got {download.Length} characters");
             Assert.NotNull(download);
         }
+        
+        [Fact]
+        public async void TestParallelForEachAsync()
+        {
+            var sum = 0;
+            await Summer(10);
+            Assert.Equal((10 * 11) / 2, sum);
+            
+            async Task Summer(int top)
+            {
+                var values = Enumerable.Range(1, top);
+                Action<int> summer = x => sum += x;
+                await Task.Run(() => Parallel.ForEach(values, summer));
+            }
+        }
+        
+        [Fact]
+        public async void TestCanGetValuesFromObservableAsync()
+        {
+            var first = 1;
+            var last = 8;
+            IObservable<int> source = Observable.Range(first, last);
+            
+            var a = await source.LastAsync();
+            Assert.Equal(last, a);
+            
+            var b = await source;
+            Assert.Equal(last, b);
+            
+            var c = await source.FirstAsync();
+            Assert.Equal(first, c);
+            
+            var d = await source.ToList();
+            Assert.Equal(
+              Enumerable.Range(first, last).ToList(), d);
+        }
+        
+        [Fact]
+        public async void TestAyncToObservableAsync()
+        {
+            var url = "http://www.google.com";
+            GetPage(new HttpClient(), url)
+              .Subscribe(async response => {
+                var download = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"DownloadStringTaskAsync: {url} got {download.Length} characters");
+                Assert.NotNull(download);
+              });
+            
+            IObservable<HttpResponseMessage> GetPage(HttpClient client, string url)
+              => Observable.StartAsync(
+                token => client.GetAsync(url, token)
+              );
+        }
     }
 }
