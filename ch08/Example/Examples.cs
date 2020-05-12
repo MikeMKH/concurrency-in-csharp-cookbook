@@ -99,5 +99,37 @@ namespace Example
                 token => client.GetAsync(url, token)
               );
         }
+        
+        
+        
+        [Fact]
+        public void ExampleBufferBlockAsObservable()
+        {
+            var block = new BufferBlock<int>();
+            IObservable<int> values = block.AsObservable();
+            values.Subscribe(
+              data => Console.WriteLine($"BufferBlock: {data}"),
+              error => Console.WriteLine($"BufferBlock: Error={error}"),
+              () => Console.WriteLine($"BufferBlock: Complete")
+            );
+            
+            block.Post(8);
+            block.Post(22);
+            block.Complete();            
+        }
+        
+        [Fact]
+        public void ExampleObservableToActionBlock()
+        {
+            IObservable<long> ticks =
+              Observable.Interval(TimeSpan.FromMilliseconds(1))
+                .Select(t => t)
+                .Take(5);
+                
+            var block = new ActionBlock<long>(x => Console.WriteLine($"ActionBlock: {x}"));
+            ticks.Subscribe(block.AsObserver());
+            
+            block.Completion.Wait();
+        }
     }
 }
