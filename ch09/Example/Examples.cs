@@ -96,5 +96,63 @@ namespace Example
                 Console.WriteLine($"ImmutableHashSet: {x}");
             }
         }
+        
+        [Fact]
+        public void TestImmutableDictionarySetItem()
+        {
+            var d0 = ImmutableDictionary<string, int>.Empty;
+            var d1 = d0.Add("ten", 10);
+            var d2 = d1.Add("eight", 8);
+            var d3 = d2.Add("five", 5);
+            
+            foreach (var x in d3)
+            {
+                Console.WriteLine($"ImmutableDictionary: {x.Key}={x.Value}");
+            }
+            
+            var d4 = d3.SetItem("ten", 1010);
+            Assert.NotEqual(d4["ten"], d3["ten"]);
+        }
+        
+        [Fact]
+        public void TestConcurrentDictionaryTryGetValue()
+        {
+            var dictionary = new ConcurrentDictionary<int, string>();
+            var expected = "foo";
+            var value = dictionary.AddOrUpdate(
+                0,
+                key => { Console.WriteLine($"ConcurrentDictionary: add {key}"); return expected; },
+                (key, old) => { Console.WriteLine($"ConcurrentDictionary: update {key}"); return expected; }
+            );
+            
+            var exists = dictionary.TryGetValue(0, out string actual);
+            Assert.True(exists);
+            Assert.Equal(expected, actual);
+        }
+        
+        [Fact]
+        public void ExampleBlockingCollectionProducerConsumer()
+        {
+            var col = new BlockingCollection<int>();
+            
+            producer();
+            consumer();
+            
+            void producer()
+            {
+                col.Add(8);
+                col.Add(11);
+                col.Add(3);
+                col.CompleteAdding();
+            }
+            
+            void consumer()
+            {
+                foreach(var x in col.GetConsumingEnumerable())
+                {
+                    Console.WriteLine($"BlockingCollection: {x}");
+                }
+            }
+        }
     }
 }
