@@ -154,5 +154,56 @@ namespace Example
                 }
             }
         }
+        
+        [Fact]
+        public void TestBlockingCollectionCanBeStack()
+        {
+            var stack = new BlockingCollection<int>(new ConcurrentStack<int>());
+            
+            stack.Add(2);
+            stack.Add(4);
+            stack.Add(6);
+            stack.CompleteAdding();
+            
+            Assert.NotEmpty(stack);
+            
+            foreach(var x in stack.GetConsumingEnumerable())
+            {
+                Console.WriteLine($"ConcurrentStack: {x}");
+            }
+            
+            Assert.Empty(stack);
+        }
+        
+        [Fact]
+        public async void ExampleChannelProducerConsumerAsync()
+        {
+            Channel<int> queue = Channel.CreateUnbounded<int>();
+            
+            ChannelWriter<int> writer = queue.Writer;
+            await writer.WriteAsync(1);
+            await writer.WriteAsync(2);
+            await writer.WriteAsync(3);
+            writer.Complete();
+            
+            ChannelReader<int> reader = queue.Reader;
+            await foreach(var x in reader.ReadAllAsync())
+            {
+                Console.WriteLine($"Channel: {x}");
+            }
+        }
+        
+        [Fact]
+        public void TestChannelCreateBoundedWaitsUntilItHasRoom()
+        {
+            Channel<int> queue = Channel.CreateBounded<int>(1);
+            ChannelWriter<int> writer = queue.Writer;
+            
+            var written = writer.TryWrite(8);
+            Assert.True(written);
+            
+            written = writer.TryWrite(11);
+            Assert.False(written);
+        }
     }
 }
