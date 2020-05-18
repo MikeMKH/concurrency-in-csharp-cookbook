@@ -205,5 +205,40 @@ namespace Example
             written = writer.TryWrite(11);
             Assert.False(written);
         }
+
+        [Fact]
+        public async void TestBufferBlockBoundedCapacityWaitsUntilItHasRoomAsync()
+        {
+            var queue = new BufferBlock<int>(
+                new DataflowBlockOptions { BoundedCapacity = 1 });
+
+            var expected = 8;
+            await queue.SendAsync(expected);
+            // await queue.SendAsync(11);  // would not return control
+            queue.Complete();
+            
+
+            var actual = await queue.ReceiveAsync();
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public async void TestBoundedChannelFullModeDropOldestKeepsNewestAsync()
+        {
+            var queue = Channel.CreateBounded<int>(
+                new BoundedChannelOptions(1)
+                {
+                    FullMode = BoundedChannelFullMode.DropOldest
+                });
+            ChannelWriter<int> writer = queue.Writer;
+            ChannelReader<int> reader = queue.Reader;
+
+            var expected = 11;
+            await writer.WriteAsync(8);
+            await writer.WriteAsync(expected);
+
+            var actual = await reader.ReadAsync();
+            Assert.Equal(expected, actual);
+        }
     }
 }
