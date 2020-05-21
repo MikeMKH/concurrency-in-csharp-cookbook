@@ -75,5 +75,35 @@ namespace Example
                   .Select(x => x * 2);
         }
 
+        [Fact]
+        public void ExampleCancelFlowsThroughDataflowBlocks()
+        {
+            using var cts = new CancellationTokenSource();
+            var options = new ExecutionDataflowBlockOptions
+            {
+                CancellationToken = cts.Token
+            };
+            var b1 = new TransformBlock<int, int>(
+                x => { Console.WriteLine("TransformBlock 1"); return x * 2; }, options);
+            var b2 = new TransformBlock<int, int>(
+                x => { Console.WriteLine("TransformBlock 2"); return x + 3; }, options);
+            var b3 = new TransformBlock<int, string>(x =>
+                {
+                    Console.WriteLine("TransformBlock 3");
+                    Thread.Sleep(100_000);
+                    return x.ToString() + "!";
+                }, options);
+            var flowCompletion = new DataflowLinkOptions
+            {
+                PropagateCompletion = true
+            };
+            b1.LinkTo(b2, flowCompletion);
+            b2.LinkTo(b3, flowCompletion);
+            var flow = DataflowBlock.Encapsulate(b1, b3);
+
+            var result = flow.Post(8);
+            flow.Complete();
+            cts.Cancel();
+        }
     }
 }
