@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Nito.AsyncEx;
 using Xunit;
 
 namespace Example
@@ -50,6 +51,61 @@ namespace Example
             
             Console.WriteLine($"{url} returned {actual} bytes");
             Assert.True(actual > 1);
+        }
+        
+        [Fact]
+        public async void TestAsyncAsMethodAsync()
+        {
+            var result = await GetDatAsync();
+            Assert.Equal(8, result);
+            
+            async Task<int> GetDatAsync()
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(10));
+                return 8;
+            }
+        }
+        
+        public class Bar
+        {
+            public AsyncLazy<int> Data
+            {
+                get { return _data; }
+            }
+            
+            private AsyncLazy<int> _data =
+              new AsyncLazy<int>(async () =>
+              {
+                  await Task.Delay(TimeSpan.FromMilliseconds(10));
+                  return 8;
+              });
+        }
+        
+        [Fact]
+        public async void TestAsyncLazyPropertyAsync()
+        {
+            var sut = new Bar();
+            var result = await sut.Data;
+            Assert.Equal(8, result);
+        }
+        
+        public class Quax : IAsyncDisposable
+        {
+            public async ValueTask DisposeAsync()
+            {
+                Console.WriteLine("DisposeAsync: DisposeAsync");
+                await Task.Delay(TimeSpan.FromMilliseconds(10));
+            }
+        }
+        
+        [Fact]
+        public async void ExampleAsyncDisposable()
+        {
+            await using (var sut = new Quax())
+            {
+                Console.WriteLine("using: Quax START");
+                Console.WriteLine("using: Quax END");
+            }
         }
     }
 }
