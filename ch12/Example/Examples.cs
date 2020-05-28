@@ -55,5 +55,37 @@ namespace Example
                 data.Value += 1;
             }
         }
+        
+        class Foo
+        {
+            private readonly object _increment_mutex = new object();
+            
+            public int Value { get { return _value; } }
+            private int _value = 0;
+            
+            public void Increment()
+            {
+                Console.WriteLine($"Before Lock: {_value}");
+                lock(_increment_mutex)
+                {
+                    Console.WriteLine($"Inside Lock: {_value}");
+                    _value += 1;
+                }
+                Console.WriteLine($"After  Lock: {_value}");
+            }
+        }
+        
+        [Fact]
+        public void TestLockOnlyAllowsOneAtTime()
+        {
+            var foo = new Foo();
+            Enumerable.Range(1, 10).AsParallel().ForAll(x =>
+            {
+                Console.WriteLine($"START: {x}");
+                foo.Increment();
+                Console.WriteLine($"END:   {x}");
+            });
+            Assert.Equal(10, foo.Value);
+        }
     }
 }
