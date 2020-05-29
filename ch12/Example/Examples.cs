@@ -87,5 +87,44 @@ namespace Example
             });
             Assert.Equal(10, foo.Value);
         }
+        
+        [Fact]
+        public async void TestTaskCompletionSourceWaitsAsync()
+        {
+            TaskCompletionSource<object> initialized = new TaskCompletionSource<object>();
+            int value1 = 0, value2 = 0;
+            
+            var task1 = WaitForInitializationAsync();
+            var task2 = Task.Run(() => Initialization());
+            
+            await Task.WhenAll(task1, task2);
+            Assert.Equal(8 + 3, task1.Result);
+            
+            async Task<int> WaitForInitializationAsync()
+            {
+                await initialized.Task;
+                Console.WriteLine("WaitForInitializationAsync");
+                return value1 + value2;
+            }
+            
+            void Initialization()
+            {
+                value1 = 8;
+                value2 = 3;
+                Console.WriteLine("Initialization");
+                initialized.TrySetResult(null);
+            }
+        }
+        
+        [Fact]
+        public void TestAsParallelWithDegreeOfParallelism()
+        {
+            long result = Enumerable.Range(1, 10_000)
+              .AsParallel()
+              .WithDegreeOfParallelism(10)
+              .Sum();
+              
+            Assert.Equal((10_000 * 10_001) / 2, result);
+        }
     }
 }
