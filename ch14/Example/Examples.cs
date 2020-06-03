@@ -65,5 +65,53 @@ namespace Example
                 return 8;
             }
         }
+        
+        private static AsyncLocal<Guid> _operationId = new AsyncLocal<Guid>();
+        
+        [Fact]
+        public async void TestAsyncLocalCanStoreInformationAsync()
+        {
+            _operationId.Value = Guid.NewGuid();
+            var expected = _operationId.Value;
+            
+            await DoLongOperation();
+            
+            async Task DoLongOperation()
+            {
+                Assert.Equal(expected, _operationId.Value);
+                await DoStepOfLongOperation();
+            }
+            
+            async Task DoStepOfLongOperation()
+            {
+                var expected = _operationId.Value;
+                await Task.Delay(TimeSpan.FromMilliseconds(10));
+                await Task.Run(() => Assert.Equal(expected, _operationId.Value));
+            }
+        }
+        
+        [Fact]
+        public async void TestBooleanArgumentHackAsync()
+        {
+            var foo1 = await FooAsync();
+            var foo2 = Foo();
+            
+            Assert.Equal(foo1, foo2);
+            
+            async Task<int> FooCore(bool sync = true)
+            {
+                int result = 8;
+                
+                if (sync)
+                  Thread.Sleep(result);       // synchronous
+                else
+                  await Task.Delay(result); // asynchronous
+                  
+                return result;
+            }
+            
+            Task<int> FooAsync() => FooCore(sync: false);
+            int Foo() => FooCore(sync: true).GetAwaiter().GetResult();
+        }
     }
 }
