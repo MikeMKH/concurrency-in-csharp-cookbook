@@ -9,6 +9,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Nito;
+using Nito.AsyncEx;
+
 using Xunit;
 
 namespace Example
@@ -50,17 +53,15 @@ namespace Example
                 return t.ToObservable();
             });
             
-            int value1 = 0, value2 = 0;
-            observable.Subscribe(x => value1 = x);
-            observable.Subscribe(x => value2 = x);
+            observable.Subscribe(x => Assert.Equal(8, x));
+            observable.Subscribe(x => Assert.Equal(8, x));
             
             Task.WaitAll(spies.ToArray());
-            Assert.Equal(value1, value2);
             
             async Task<int> GetValueAsync()
             {
                 Console.WriteLine($"START GetValueAsync on {Task.CurrentId}");
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                await Task.Delay(TimeSpan.FromMilliseconds(10));
                 Console.WriteLine($"END   GetValueAsync on {Task.CurrentId}");
                 return 8;
             }
@@ -112,6 +113,38 @@ namespace Example
             
             Task<int> FooAsync() => FooCore(sync: false);
             int Foo() => FooCore(sync: true).GetAwaiter().GetResult();
+        }
+        
+        static TransformBlock<Try<TInput>, Try<TOutput>> RailwayTransform<TInput, TOutput>(
+            Func<TInput, TOutput> func) => 
+              new TransformBlock<Try<TInput>, Try<TOutput>>(t => t.Map(func));
+        
+        [Fact]
+        public async void ExampleRailTransformAsync()
+        {
+            var sub1 = RailwayTransform<int, int>(x => x - 1);
+            var mul2 = RailwayTransform<int, int>(x => x * 2);
+            var add3 = RailwayTransform<int, int>(x => x + 3);
+            
+            var options = new DataflowLinkOptions { PropagateCompletion = true };
+            mul2.LinkTo(sub1, options);
+            sub1.LinkTo(add3, options);
+            
+            mul2.Post(Try.FromValue(5));
+            mul2.Post(Try.FromValue(1));
+            mul2.Post(Try.FromValue(-1));
+            mul2.Complete();
+            
+            while (await add3.OutputAvailableAsync())
+            {
+                Try<int> item = await add3.ReceiveAsync();
+                if (item.IsValue)
+                  Console.WriteLine($"RailwayTransform: {item.Value}");
+                else
+                  Console.WriteLine($"RailwayTransform: {item.Exception.Message}");
+    }
+
+            
         }
     }
 }
