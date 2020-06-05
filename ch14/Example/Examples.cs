@@ -127,24 +127,49 @@ namespace Example
             var add3 = RailwayTransform<int, int>(x => x + 3);
             
             var options = new DataflowLinkOptions { PropagateCompletion = true };
-            mul2.LinkTo(sub1, options);
-            sub1.LinkTo(add3, options);
+            sub1.LinkTo(mul2, options);
+            mul2.LinkTo(add3, options);
             
-            mul2.Post(Try.FromValue(5));
-            mul2.Post(Try.FromValue(1));
-            mul2.Post(Try.FromValue(-1));
-            mul2.Complete();
+            sub1.Post(Try.FromValue(5));
+            sub1.Post(Try.FromValue(1));
+            sub1.Post(Try.FromValue(-1));
+            sub1.Complete();
             
             while (await add3.OutputAvailableAsync())
             {
                 Try<int> item = await add3.ReceiveAsync();
                 if (item.IsValue)
-                  Console.WriteLine($"RailwayTransform: {item.Value}");
+                  Console.WriteLine($"RailwayTransform: value={item.Value}");
                 else
-                  Console.WriteLine($"RailwayTransform: {item.Exception.Message}");
-    }
-
+                  Console.WriteLine($"RailwayTransform: exception=\"{item.Exception.Message}\"");
+            }
+        }
+        
+        [Fact]
+        public async void ExampleRailTransformWithExceptionAsync()
+        {
+            var start = RailwayTransform<int, int>(x => x + 8);
+            var error = RailwayTransform<int, int>(
+                x => (x % 3 == 1) ? throw new Exception("x % 3 == 1") : x + 7);
+            var final = RailwayTransform<int, int>(x => x * 3);
             
+            var options = new DataflowLinkOptions { PropagateCompletion = true };
+            start.LinkTo(error, options);
+            error.LinkTo(final, options);
+            
+            start.Post(Try.FromValue(5));
+            start.Post(Try.FromValue(1)); // should not error
+            start.Post(Try.FromValue(-1));
+            start.Complete();
+            
+            while (await final.OutputAvailableAsync())
+            {
+                Try<int> item = await final.ReceiveAsync();
+                if (item.IsValue)
+                  Console.WriteLine($"RailwayTransform: value={item.Value}");
+                else
+                  Console.WriteLine($"RailwayTransform: excpetion=\"{item.Exception.Message}\"");
+            }
         }
     }
 }
